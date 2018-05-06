@@ -1,0 +1,252 @@
+﻿package controller;
+-import model.Goods;
+-import dao.*;
+-import java.sql.*;
+-import java.util.*;
+-public class GoodsController {
+-	public void addGoods(Goods g){//向数据库添加新商品(update or insert)
+-		Connection conn=DbUtil.getCon();
+-		GoodsDao gd=new GoodsDao();
+-		if(gd.hasGoods(conn,g.getCode())){
+-			gd.goodsDecrease(conn,g.getCode(),-g.getNum());//sql:  num=num-(-x)
+-		}else{
+-			gd.insert(conn, g);
+-		}
+-		try {
+-			conn.close();
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-	}
+-	public Goods findItem(String barcode){//商品销售时输入条码，返回goods对象用于生成清单（null表示未找到）
+-		Connection conn=DbUtil.getCon();
+-		GoodsDao gd=new GoodsDao();
+-		Goods g=gd.select(conn, barcode);
+-		try {
+-			conn.close();
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-		return g;
+-	}
+-	public int confirmOrder(List<Goods> list){//最后结算时输入商品（gooods）集合，返回更新记录条数
+-		int record_change=0;
+-		Connection conn=DbUtil.getCon();
+-		GoodsDao gd=new GoodsDao();
+-		for(int i=0;i<list.size();i++){
+-			record_change+=gd.goodsDecrease(conn, list.get(i).getCode(), list.get(i).getNum());
+-		}
+-		
+-		return record_change;
+-	}
+-}
+-
+-import java.sql.*;
+-import model.*;
+-
+-public class GoodsDao {//主键code 
+-	public boolean hasGoods(Connection conn,String barcode){
+-		String sql="select count(*) from goods where 编码=?";
+-		int count=0;
+-		try {
+-			PreparedStatement pra = conn.prepareStatement(sql);
+-			pra.setString(1, barcode);
+-			ResultSet result = pra.executeQuery();
+-			if(result.next()){
+-				count=result.getInt(1);
+-			}
+-			result.close();
+-			pra.close();
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}System.out.println("dao.goodsdao.hasgoods():"+count);
+-		if(count==1)return true;
+-		
+-		return false;
+-	}
+-	public int insert(Connection con,Goods g){
+-		int recordChange=0;
+-		String sql="insert into goods value(?,?,?,?,?,?,?)";
+-		/*编码	货物名字	单价	进货价	供应商	数量	保质期*/
+-		try {
+-			PreparedStatement pra = con.prepareStatement(sql);
+-			pra.setString(1, g.getCode());
+-			pra.setString(2, g.getName());
+-			pra.setFloat(3, g.getSellPrice());
+-			pra.setFloat(4, g.getBuyPrice());
+-			pra.setString(5, g.getSupplier());
+-			pra.setInt(6, g.getNum());
+-			pra.setInt(7, g.getLife());
+-			recordChange=pra.executeUpdate();
+-			pra.close();
+-			
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-		return recordChange;
+-	}
+-	public Goods select(Connection con,String barcode){
+-		String sql="select* from goods where 编码=?";
+-		Goods g=null;
+-		try {
+-			PreparedStatement pra = con.prepareStatement(sql);
+-			pra.setString(1, barcode);
+-			ResultSet rs= pra.executeQuery();
+-			if(rs!=null&&rs.next()){
+-				g=new Goods();
+-				g.setCode(rs.getString(1));
+-				g.setName(rs.getString(2));
+-				g.setSellPrice(rs.getFloat(3));
+-				g.setBuyPrice(rs.getFloat(4));
+-				g.setSupplier(rs.getString(5));
+-				g.setNum(rs.getInt(6));
+-				g.setLife(rs.getInt(7));
+-				rs.close();
+-			}
+-			pra.close();
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-		return g;
+-		
+-	}
+-	public int goodsDecrease(Connection con,String barcode,int num){
+-		int recordChange=0;
+-		String sql="update goods set 数量=数量-? where 编码=?";
+-		/*编码	货物名字	单价	进货价	供应商	数量	保质期*/
+-		try {
+-			PreparedStatement pra = con.prepareStatement(sql);
+-			pra.setString(2, barcode);
+-			pra.setInt(1, num);
+-			recordChange=pra.executeUpdate();
+-			pra.close();
+-			
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-		return recordChange;
+-	}
+-
+-}
+-
+-import controller.*;
+-import model.*;
+-import java.util.*;
+-class demo {
+- 
+-     public static void main(String[] args){
+-	     System.out.println("执行结果如下所示:");  
+-	     GoodsController gc=new GoodsController();
+-	     
+-	     Goods g1;
+-	     Goods g2;
+-	     g1=gc.findItem("111110");
+-	     g2=gc.findItem("111111");
+-	     System.out.println("查找货物");  
+-	     System.out.println(g1.getCode()+"--"+g1.getName()+"--"+g1.getNum());
+-	     System.out.println(g2.getCode()+"--"+g2.getName()+"--"+g2.getNum());
+-	     
+-	     g1.setNum(1);
+-	     gc.addGoods(g1);
+-	     System.out.println("111110加一件");
+-	     g1=gc.findItem("111110");
+-	     System.out.println(g1.getCode()+"--"+g1.getName()+"--"+g1.getNum());
+-	     
+-	     g1.setNum(1);
+-	     g2.setNum(1);
+-	     Vector<Goods> v=new Vector<Goods>();v.add(g1);v.add(g2);
+-	     int change=gc.confirmOrder(v);
+-	     System.out.println("结算订单"+change);
+-	     g1=gc.findItem("111110");
+-	     g2=gc.findItem("111111");
+-	     System.out.println("findItem()");  
+-	     System.out.println(g1.getCode()+"--"+g1.getName()+"--"+g1.getNum());
+-	     System.out.println(g2.getCode()+"--"+g2.getName()+"--"+g2.getNum());
+-     }
+- 
+- }
+- import java.sql.*;
+-public class DbUtil {
+-	static String url = "jdbc:mysql://localhost:3306/shop?useSSL=false";
+-	static String user = "root"; //MySQL配置时的用户名
+-	static String password = "root";//MySQL配置时的密码
+-    static public Connection getCon(){
+-        Connection con=null;
+-		try {
+-			con = DriverManager.getConnection(url,user,password);
+-		} catch (SQLException e) {
+-			// TODO Auto-generated catch block
+-			e.printStackTrace();
+-		}
+-        return con;
+-    }
+-    
+-    static public void closeCon(Connection con) {
+-        if(con!=null) {
+-            try {
+-                con.close();
+-            } catch (SQLException e) {
+-                e.printStackTrace();
+-            }
+-        }
+-    }
+-}
+-
+-public class Goods {
+-	String barcode;//商品编码，最长不超过13位
+-	String name;//商品 名
+-	float sell_price;//出售价
+-	float buy_price;//进货价
+-	String supplier;//供应商
+-	int num;//数量
+-	int life;//保质期（天）
+-	
+-	public void setCode(String barcode){
+-		this.barcode=barcode;
+-	}
+-	public void setName(String name){
+-		this.name=name;
+-	}
+-	public void setSellPrice(float sellPrice){
+-		this.sell_price=sellPrice;
+-	}
+-	public void setBuyPrice(float buyPrice){
+-		this.buy_price=buyPrice;
+-	}
+-	public void setSupplier(String sp){
+-		this.supplier=sp;
+-	}
+-	public void setNum(int num){
+-		this.num=num;
+-	}
+-	public void setLife(int life){
+-		this.life=life;
+-	}
+-	public String getCode(){
+-		return barcode;
+-	}
+-	public String getName(){
+-		return name;
+-	}
+-	public float getSellPrice(){
+-		return sell_price;
+-	}
+-	public float getBuyPrice(){
+-		return buy_price;
+-	}
+-	public String getSupplier(){
+-		return supplier;
+-	}
+-	public int getNum(){
+-		return num;
+-	}
+-	public int getLife(){
+-		return life;
+-	}
+-}
